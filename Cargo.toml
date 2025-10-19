@@ -9,4 +9,4 @@ name = "pyo3_playground"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.25.0"
+pyo3 = { version = "0.26.0", features = ["auto-initialize"] }
