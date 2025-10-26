@@ -1,23 +1,24 @@
 import time
+from typing import Protocol
 
-from .pyo3_playground import repository, rs_sleep
-
-
-def py_sleep(seconds: int) -> int:
-    print(f"PYTHON: Sleeping for {seconds} seconds")
-    time.sleep(seconds)
-    return seconds
+CALLS: list[int] = []
 
 
-def py_rs_sleep(seconds: int) -> int:
-    print("Invoking rs_sleep")
-    return rs_sleep(seconds)
+class Repo(Protocol):
+    def rs_sleep(self, seconds: int) -> int: ...
 
 
-def service(value: int) -> str:
-    print(f"PYTHON: entering service: {value=}, saving doubled value")
+class Service:
+    def __init__(self, repo: Repo | None = None) -> None:
+        self.repo: Repo | None = repo
 
-    result = repository(value * 2)
-    print(f"PYTHON: exiting service, {result=}")
+    def py_sleep(self, seconds: int) -> int:
+        print(f"PYTHON: Sleeping for {seconds} seconds")
+        time.sleep(seconds)
+        return seconds
 
-    return result
+    def repo_sleep(self, seconds: int) -> int:
+        assert self.repo
+        CALLS.append(seconds)
+        print("PYTHON: Invoking rs_sleep")
+        return self.repo.rs_sleep(seconds)
