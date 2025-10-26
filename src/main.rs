@@ -1,6 +1,23 @@
+use core::time;
 use pyo3::prelude::*;
 use pyo3::py_run;
 use std::process::Command;
+use std::thread;
+use std::time::Instant;
+
+macro_rules! call1 {
+    ($obj:ident, $method:literal, $args:expr) => {
+        $obj.getattr($method)
+            .and_then(|m| m.call1($args))
+            .and_then(|r| r.extract())
+    };
+}
+
+macro_rules! import {
+    ($py:ident, $module:literal) => {
+        PyModule::import($py, $module)
+    };
+}
 
 /// Initialize Python interpreter and fix sys.path, to match possibly activated virtual env
 fn init_python() {
@@ -30,15 +47,29 @@ fn init_python() {
 fn main() -> PyResult<()> {
     init_python();
 
-    Python::attach(|py| -> PyResult<()> {
-        println!("Importing python backend");
-        let backend = PyModule::import(py, "pyo3_playground.backend")?;
+    let mut handles = vec![];
 
-        println!("Invoking service function");
-        let total: String = backend.getattr("service")?.call1((19,))?.extract()?;
+    let start = Instant::now();
+    for _ in 0..10 {
+        let handle = thread::spawn(|| {
+            Python::attach(|py| -> PyResult<()> {
+                println!("Importing python backend");
+                let backend = import!(py, "pyo3_playground.backend")?;
 
-        println!("Success: result={total}");
-        Ok(())
-    })?;
+                println!("Invoking py_rs_sleep");
+                let _: usize = call1!(backend, "py_rs_sleep", (2,))?;
+
+                Ok(())
+            })
+            .expect("Python attach failed")
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    println!("Total: {:.2?}", start.elapsed());
+
     Ok(())
 }
